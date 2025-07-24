@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jogo da Memória - Células</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #e6f2ff;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 15px;
+      justify-content: center;
+      margin-top: 30px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .card {
+      width: 100px;
+      height: 100px;
+      border-radius: 10px;
+      perspective: 1000px;
+      cursor: pointer;
+    }
+
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.5s;
+    }
+
+    .flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-front, .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 10px;
+    }
+
+    .card-front {
+      background-color: #0d6efd;
+    }
+
+    .card-back {
+      transform: rotateY(180deg);
+      background-color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 5px;
+    }
+
+    .card-back img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+    }
+
+    #timer {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    #congrats {
+      margin-top: 30px;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: green;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🧠 Jogo da Memória: Células</h2>
+  <p>Memorize as cartas antes de começarmos!</p>
+
+  <button id="startBtn" class="btn btn-primary mb-3">Iniciar Jogo</button>
+  <div id="timer">⏱️ Tempo: 0s</div>
+
+  <div class="grid" id="gameBoard"></div>
+
+  <div id="congrats"></div>
+
+  <script>
+   
+// Total: 14 imagens (28 cartas)
+const images = [
+  // Já existentes (10 pares)
+  'nucleo.jpg',
+  'ribossomo.jpg',
+  'mitocondria.PNG',
+  'microscopio.jpg',
+  'menbrana.PNG',
+  'citoplasma.PNG',
+  'celula-vegetal.jpg',
+  'celula.jpg',
+  'centrilos.jpg',
+  'liso.jpg',
+
+  // Novos 4 pares (ADICIONADOS)
+  '3d.jpg',      // célula 3D
+  'fazenda.jpg',     // cultura celular
+  'sperial.jpg',       // espiral DNA azul
+  'celula-animal.jpg' // microscópio de mesa
+];
+
+
+
+
+    let firstCard = null;
+    let secondCard = null;
+    let lockBoard = false;
+    let matches = 0;
+    let startTime;
+    let timerInterval;
+    let canClick = false;
+
+    const board = document.getElementById('gameBoard');
+    const timer = document.getElementById('timer');
+    const startBtn = document.getElementById('startBtn');
+    const congrats = document.getElementById('congrats');
+
+    function startGame() {
+      board.innerHTML = '';
+      congrats.style.display = 'none';
+      firstCard = null;
+      secondCard = null;
+      lockBoard = false;
+      matches = 0;
+      canClick = false;
+
+      const allImages = [...images, ...images].sort(() => 0.5 - Math.random());
+      const cards = allImages.map((src, index) => createCard(src, index));
+
+      cards.forEach(card => board.appendChild(card));
+
+      // Mostra todas as cartas por 5 segundos
+      const allCards = document.querySelectorAll('.card');
+      allCards.forEach(card => card.classList.add('flipped'));
+
+      setTimeout(() => {
+        allCards.forEach(card => card.classList.remove('flipped'));
+        startTime = Date.now();
+        canClick = true;
+        clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimer, 1000);
+      }, 5000);
+    }
+
+    function createCard(src, id) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.image = src;
+
+      card.innerHTML = `
+        <div class="card-inner">
+          <div class="card-front"></div>
+          <div class="card-back"><img src="${src}" alt="imagem"></div>
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        if (!canClick || lockBoard || card.classList.contains('flipped') || card === firstCard) return;
+        card.classList.add('flipped');
+
+        if (!firstCard) {
+          firstCard = card;
+        } else {
+          secondCard = card;
+          checkMatch();
+        }
+      });
+
+      return card;
+    }
+
+    function checkMatch() {
+      const isMatch = firstCard.dataset.image === secondCard.dataset.image;
+      if (isMatch) {
+        matches++;
+        resetCards();
+        if (matches === images.length) {
+          clearInterval(timerInterval);
+          const totalTime = Math.floor((Date.now() - startTime) / 1000);
+          congrats.innerHTML = `🎉 Parabéns! Você encontrou todos os pares em <strong>${totalTime} segundos</strong>.`;
+          congrats.style.display = 'block';
+        }
+      } else {
+        lockBoard = true;
+        setTimeout(() => {
+          firstCard.classList.remove('flipped');
+          secondCard.classList.remove('flipped');
+          resetCards();
+        }, 1000);
+      }
+    }
+
+    function resetCards() {
+      [firstCard, secondCard] = [null, null];
+      lockBoard = false;
+    }
+
+    function updateTimer() {
+      const seconds = Math.floor((Date.now() - startTime) / 1000);
+      timer.textContent = `⏱️ Tempo: ${seconds}s`;
+    }
+
+    startBtn.addEventListener('click', startGame);
+  </script>
+
+</body>
+</html>
